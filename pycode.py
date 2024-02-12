@@ -1,67 +1,75 @@
+import concurrent.futures
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
 
 # Dictionary of queries and corresponding URLs
-queries = {
+queries_urls = {
     'Industry Information': 'https://en.wikipedia.org/wiki/Canoo',
-    'Competitors Information': 'https://craft.co/canoo/competitors',
-    'Market Trends': 'https://www.nasdaq.com/news-and-insights/markets',
+    'Market Trends': 'https://www.nasdaq.com/articles/canoo:-buy-sell-or-hold',
+    'Competitors Information': 'https://en.wikipedia.org/wiki/Tesla,_Inc.',
     'Financial Performance': 'https://investors.canoo.com/financial-information/financial-results'
 }
 
 # Function to scrape data from a single web link
 def scrape_data(link):
     response = requests.get(link)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    return soup.get_text()
+    # Check if the request was successful
+    if response.status_code == 200:
+        return response.text
+    else:
+        raise Exception(f"Request to {link} returned an error: {response.status_code}")
 
-# Function to store data in a CSV file
-def store_data_in_csv(data, filename):
-    df = pd.DataFrame([data], columns=['text'])
+# Custom function to process and structure the raw HTML data
+def process_data(html_data, topic):
+    soup = BeautifulSoup(html_data, 'html.parser')
+
+    # Depending on the topic, you might extract data differently
+    # This is a placeholder for your custom logic
+    if topic == 'Industry Information':
+        # Extract specific data from the HTML
+        data = {'section': [], 'content': []}
+        # For example, extracting sections and their content from Wikipedia
+        for section in soup.select('h2, h3'):
+            section_title = section.get_text().strip()
+            content = section.find_next_sibling().get_text().strip()
+            data['section'].append(section_title)
+            data['content'].append(content)
+        return pd.DataFrame(data)
+
+    elif topic == 'Competitors Information':
+        # Extract competitor information
+        pass  # Implement your custom logic here
+
+    elif topic == 'Market Trends':
+        # Extract market trends information
+        pass  # Implement your custom logic here
+
+    elif topic == 'Financial Performance':
+        # Extract financial performance data
+        pass  # Implement your custom logic here
+
+    else:
+        return pd.DataFrame()  # Return an empty DataFrame for unknown topics
+
+# Function to store DataFrame in a CSV file
+def store_data_in_csv(df, filename):
     df.to_csv(filename, index=False)
 
-# Convert the text data to a vector space model
-def convert_to_vector_database(text):
-    vectorizer = TfidfVectorizer()
-    vector_database = vectorizer.fit_transform([text])
-    return vector_database, vectorizer
-
-# Function to run queries in the vector space model
-def run_queries(query, vector_database, vectorizer):
-    query_vector = vectorizer.transform([query])
-    cosine_similarities = linear_kernel(query_vector, vector_database).flatten()
-    related_docs_indices = cosine_similarities.argsort()[:-5:-1]
-    return related_docs_indices
-
-# Text summarization placeholder
-def summarize_text(text):
-    return text[:100]
-
-# Generate a report file
-def generate_report(summary, filename):
-    with open(filename, 'w') as f:
-        f.write(summary + '\n\n')
-
 # Main process
-for query, url in queries.items():
-    # Scrape data from the URL
-    data = scrape_data(url)
-    
-    # Store the scraped data in a CSV file
-    csv_filename = f"{query.replace(' ', '_')}.csv"
-    store_data_in_csv(data, csv_filename)
-    
-    # Convert the data to a vector space model
-    vector_database, vectorizer = convert_to_vector_database(data)
-    
-    # Run the query in the vector space model
-    results_indices = run_queries(query, vector_database, vectorizer)
-    
-    # For simplicity, we just take the first result to summarize as an example
-    if results_indices.size > 0:
-        summary = summarize_text(data)
-        report_filename = f"{query.replace(' ', '_')}_report.txt"
-        generate_report(summary, report_filename)
+def main():
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_url = {executor.submit(scrape_data, url): topic for topic, url in queries_urls.items()}
+        for future in concurrent.futures.as_completed(future_to_url):
+            topic = future_to_url[future]
+            try:
+                html_data = future.result()
+                structured_data = process_data(html_data, topic)
+                csv_filename = f"{topic.replace(' ', '_')}.csv"
+                store_data_in_csv(structured_data, csv_filename)
+                print(f"Data for {topic} saved successfully in {csv_filename}.")
+            except Exception as e:
+                print(f"Error processing {topic}: {str(e)}")
+
+if __name__ == "__main__":
+    main()
