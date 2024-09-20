@@ -5,6 +5,7 @@ import pandas as pd
 
 # Dictionary of queries and corresponding URLs
 queries_urls = {
+
     'Industry Information': 'https://en.wikipedia.org/wiki/Canoo',
     'Competitors Information': 'https://en.wikipedia.org/wiki/Tesla,_Inc.',
     'Financial Performance': 'https://investors.canoo.com/financial-information/financial-results',
