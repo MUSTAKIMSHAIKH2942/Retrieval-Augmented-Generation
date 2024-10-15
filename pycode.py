@@ -11,6 +11,7 @@ queries_urls = {
     'Market Trends': 'https://www.nasdaq.com/articles/canoo:-buy-sell-or-hold'
 }
 
+
 # Function to scrape data from a single web link
 def scrape_data(link):
     response = requests.get(link)
